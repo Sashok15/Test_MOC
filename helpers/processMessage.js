@@ -8,7 +8,7 @@ const MongoClient = require('mongodb').MongoClient;
 
 const db = require('../helpers/db')
 const url = "mongodb://localhost:27017/mydb";
-var dbo
+let dbo
 
 MongoClient.connect(url, function (err, db) {
     if (err) throw err;
@@ -30,30 +30,27 @@ const sendTextMessage = (senderId, text) => {
 
 const handlePostback = (event) => {
     let payload = event.postback.payload;
+    let senderId = event.sender.id
     console.log(payload)
     let response;
     if (payload === 'create') {
-        // console.log(event.messaging.message.text)
         response = "What would you like your reminder to be? etc 'I have an appointment today from 4 to 8 AM' the information will be added automatically"
         datetime = chrono.parseDate(response)
         console.log(datetime)
-        // var myobj = { senderId: event.sender.id, datetime };
-        // dbo.collection("users").insertOne(myobj, function (err, res) {
-        // if (err) throw err;
-        // console.log("1 document inserted");
-        // });
-        sendTextMessage(event.sender.id, 'reminder success write')
-        dbo.collection("users").find({}, {senderId: event.sender.id}).toArray(function (error, result) {
-            if (error) throw error;
-            console.log(result);
+        let myobj = { senderId: event.sender.id, datetime };
+        dbo.collection("users").insertOne(myobj, function (err, res) {
+            if (err) throw err;
+            console.log("1 document inserted");
         });
+        sendTextMessage(senderId, 'reminder success write')
+
         let promise = new Promise(function (resolve, reject) {
             resolve(sendPersistentMenu(event), (eventEmitter) => {
                 if (!error) {
-                    eventEmitter.emit('new', response.object.slug, datetime)
+                    eventEmitter.emit('new', "reminder in eventEmitter", datetime)
                     sendTextMessage("reminder added correctly :)")
                 } else {
-                    sendTextMessage(event.sender.id, "Added not ad")
+                    sendTextMessage(senderId, "not added")
                 }
             });
             reject(Error, 'error in my function promise')
@@ -80,10 +77,15 @@ const handlePostback = (event) => {
         );
 
     } else if (payload === 'show') {
-        response = "show all reminders"
-        sendTextMessage(event.sender.id, 'show all reminders')
-    }
-};
+        // response = "show all reminders"
+        var query = { senderId: senderId };
+        dbo.collection("users").find({}, { _id: 0 }).toArray(function (err, result) {
+            if (err) throw err;
+            console.log(result)
+            sendTextMessage(senderId, result)
+        })
+    };
+}
 
 const sendPersistentMenu = (event) => {
     const senderId = event.sender.id;
@@ -167,8 +169,7 @@ const sendPersistentMenu = (event) => {
         method: 'POST',
         json: {
             recipient: { id: senderId },
-            message: messageData, 
-            persistent_menu: persistentMenu
+            message: messageData, persistentMenu
         }
     });
 }
@@ -183,13 +184,13 @@ const processAiMessage = (event) => {
         'response', function (response) {
             console.log('getContext', response)
         });
-
+ 
     let requestSingle = app.getContextsRequest('crowbotics_bot', 'contextName');
-
+ 
     requestSingle.on('response', function (response) {
         console.log(response);
     });
-
+ 
     requestSingle.on('error', function (error) {
         console.log(error);
     }); */
@@ -236,11 +237,14 @@ const sendAcceptSnoozebuttons = (event) => {
         }
     });
 }
-
+// change to import export
 module.exports.sendPersistentMenu = sendPersistentMenu;
-module.exports.sendTextMessage = sendTextMessage;
 module.exports.processMessage = processAiMessage;
-module.exports.sendAcceptSnoozebuttons = sendAcceptSnoozebuttons;
 module.exports.handlePostback = handlePostback;
 
 
+var myobj = { senderId: event.sender.id, datetime };
+dbo.collection("users").insertOne(myobj, function (err, res) {
+    if (err) throw err;
+    console.log("1 document inserted");
+});
